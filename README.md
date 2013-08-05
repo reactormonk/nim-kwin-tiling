@@ -6,6 +6,25 @@ This implements tiling for the KWin window manager. It is written in
 resulting script (`nimcache/tiling.js`) can then be loaded with kwin.
 Better distribution mechanisms in progress.
 
+Use
+===
+
+Geometries
+----------
+
+Basically gravities copied from subtle, without the configurability
+for now. Hit the corresponding keys to move the window into the
+predefined tile:
+
+    M+8   M+9   M+0
+        \  |  /
+    M+i - M+o - M+p
+        /  |  \
+    M+m   M+,   M+.
+
+Develop
+=======
+
 Building the script
 -------------------
 
