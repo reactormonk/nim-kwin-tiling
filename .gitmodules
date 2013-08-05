@@ -1,0 +1,3 @@
+[submodule "kwin"]
+	path = kwin
+	url = git@github.com:Tass/nim-kwin.git
