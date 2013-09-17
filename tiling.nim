@@ -1,26 +1,6 @@
-import kwinglobal, kwinworkspace, kwinclient, kwinoptions, kwintoplevel, kwinhelper
-import hashes, tables, math
-
-type TTilePos = enum Top = "Top" TopLeft = "Top Left" TopRight = "Top Right" Left = "Left" Right = "Right" BottomLeft = "Bottom Left" BottomRight = "Bottom Right" Bottom = "Bottom" Middle = "Middle"
-
-type TTile = ref object
-  x: int
-  y: int
-  height: int
-  width: int
-
-proc makeTile*(x, y, width, height: int): TTile =
-  new(result)
-  result.x = x
-  result.y = y
-  result.height = height
-  result.width = width
-  
-proc `$`(tile: TTile): string =
-  result = "{Tile: x:" & $tile.x & " y:" & $tile.y & " h: " & $tile.height & " w: " & $tile.width & "}"
-
-proc `$`(rect: TRect): string =
-  result = "{Rect: x:" & $rect.x & " y:" & $rect.y & " h: " & $rect.height & " w: " & $rect.width & "}"
+import kwinglobal, kwinworkspace, kwinclient, kwintoplevel, kwinhelper, types
+import hashes, tables, math, sequtils, dom
+import fibonacci
 
 var geometries: array[TTilePos, TTile]
 geometries[Top] = makeTile(50,0,100,50)
@@ -55,12 +35,52 @@ proc currentClientToTile(name: TTilePos) =
 proc registerCallback(pos: TTilePos, key: string) =
   var callback = proc() {.closure.} = currentClientToTile(pos)
   registerShortcut("Put current window in Tile " & $pos, "", key, callback)
+  
+proc relevantForTiling(client: TClient): bool =
+  result = (client.desktop == currentDesktop or client.onAllDesktops) and client.resizeable
+  
+# Bugged
+# proc relevantClients(): seq[TClient] = clientList().filter(relevantForTiling)
+proc relevantClients(): seq[TClient] =
+  result = @[]
+  for client in clientList():
+    if relevantForTiling(client):
+      result.add(client)
+      
+proc tilingArea(aroundClient: TClient): TRect = clientArea(MaximizeArea, aroundClient)
 
 var defaultBindings = [(Top, "Meta+9"), (TopLeft, "Meta+8"),
            (TopRight, "Meta+0"), (Left, "Meta+i"), (Right, "Meta+p"),
            (Bottom, "Meta+,"), (BottomLeft, "Meta+m"), (BottomRight, "Meta+."),
            (Middle, "Meta+o")]
+           
+proc displayOutlines(elements: seq[TRect], interval: int) =
+  var n = 0
+  var timer = makeTimer()
+  proc displayOutline() =
+    if isNil(elements[n]):
+      hideOutline()
+      timer.stop
+    else:
+      echo(elements[n])
+      showOutline(elements[n])
+      inc(n)
+  timer.interval = interval
+  timer.connect(displayOutline)
+  displayOutline()
+  timer.start
+  
+proc assignPositions(clients: seq[TClient], positions: seq[TRect]) =
+  if clients.len != positions.len:
+    raise newException(EOS, "both seqs have to be of equal length")
+  for i in 0 .. < clients.len:
+    clients[i].geometry = positions[i]
 
 when isMainModule:
-  for item in defaultBindings:
-    registerCallback(item[0], item[1])
+  var clients = relevantclients()
+  var rects = spiral(tilingArea(activeClient), 0.5, clients)
+  assignPositions(clients, rects)
+  # var elements = spiral(tilingArea(activeClient), 0.5, relevantclients())
+  # displayOutlines(elements, 3000)
+  # for item in defaultBindings:
+  #   registerCallback(item[0], item[1])
